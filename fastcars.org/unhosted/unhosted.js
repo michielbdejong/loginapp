@@ -440,7 +440,7 @@ unhosted = new function() {
 		var parts = guid.split('@', 2);
 		return (parts[1] == 'balimich.org');
 	}
-	this.registerWithCaptcha = function(guid, captchaSolution) {
+	this.registerAccount = function(guid) {
 		var parts, key, ret;
 		parts = guid.split('@', 2);
 		if(parts.length != 2) {
@@ -448,8 +448,22 @@ unhosted = new function() {
 		} else {
 			key = createPub(parts[0], parts[1]);
 			//storage storageNode needs to know read and write passwords:
-			ret = sendPost("protocol=UJ/0.2&action=ACCT.CREATE&user="+parts[0]+"&subPass="+key.subPass+"&pubPass="+key.pubPass+"&creationToken="+captchaSolution, parts[1]);
+			ret = sendPost("protocol=UJ/0.2&action=ACCT.REGISTER&emailUser="+parts[0]+"&emailDomain="+parts[1]
+				+"&subPass="+key.subPass+"&pubPass="+key.pubPass, key.storageNode);
 			this.importPub(key, guid);
+		}
+		return ret;
+	}
+	this.confirmAccount = function(guid, registrationToken) {
+		var parts, key, ret;
+		parts = guid.split('@', 2);
+		if(parts.length != 2) {
+			alert("guid "+guid+" not valid - use user@domain.tld");
+		} else {
+			key = key[guid];
+			//storage storageNode needs to know read and write passwords:
+			ret = sendPost("protocol=UJ/0.2&action=ACCT.CONFIRM&emailUser="+parts[0]+"&emailDomain="+parts[1]
+				+"&pubPass="+key.pubPass+"&registrationToken="+registrationToken, key.storageNode);
 		}
 		return ret;
 	}
@@ -471,12 +485,14 @@ unhosted = new function() {
 			keys[toGuid].subPass = bnReadKey.toString(16);
 			//tell new node:
 			key = keys[toGuid];
-			ret = sendPost("protocol=UJ/0.2&action=MIGR.IMMIGRATE&user="+key.user+"&subPass="+key.subPass+"&pubPass="+key.pubPass
-					+"&creationToken="+captchaSolution+"&fromUser="keys[fromGuid].user+"&fromNode="+keys[fromGuid].storageNode
+			ret = sendPost("protocol=UJ/0.2&action=MIGR.IMMIGRATE&emailUser="+key.emailUser+"&emailDomain="+keys[fromGuid].emailDomain
+					+"&subPass="+key.subPass+"&pubPass="+key.pubPass
+					+"&creationToken="+captchaSolution+"&fromNode="+keys[fromGuid].storageNode
 					+"&migrationToken="+migrationToken, key.storageNode);
 			//tell old node:
-			ret = sendPost("protocol=UJ/0.2&action=MIGR.EMIGRATE&user="+keys[fromGuid].user+"&pubPass="+pubPass
-					+"&migrationToken="+migrationToken+"&toUser="keys[toGuid].user+"&toNode="+keys[toGuid].storageNode,
+			ret = sendPost("protocol=UJ/0.2&action=MIGR.EMIGRATE&emailUser="+keys[fromGuid].emailUser+"&emailDomain="+keys[fromGuid].emailDomain
+					+"&pubPass="+pubPass
+					+"&migrationToken="+migrationToken+"&toNode="+keys[toGuid].storageNode,
 					keys[fromGuid].storageNode);
 			//tell wallet:
 			ret = sendPost("protocol=KeyWallet/0.1&action=SET&email="+email+"&password="+walletPass+"&wallet="+keys[toGuid], walletHost, "http://", "/wallet/");

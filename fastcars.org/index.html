@@ -52,17 +52,16 @@ function registerStep1() {
 	document.getElementById('registerButton').disabled = true;
 	var guid = document.getElementById("reg_user").value;
 	if(!unhosted.nodeExists(guid)) {
-		alert("since your email "+guid+" does not support unhosted storage we will unhost your data to mlsn.org. that's how nice mlsn.org are. Check http://www.unhosted.org/UnhostYourself.html for ways to fix this");
-		guid += ".mlsn.org";
+		guid += ".balimich.org";
 	}
 	var regCaptchaUrl = unhosted.getCaptchaUrl(guid, 'reg');
 	document.getElementById("regCaptchaDiv").innerHTML = 
 	"<table><tr><td>Password:</td><td> <input type=\"text\" value=\"pwd\" id=\"reg_pass\"></td></tr>"
 		+"<tr><td>Repeat:</td><td> <input type=\"text\" value=\"pwd\" id=\"reg_pass2\"></td></tr></table>"
 		+"<input type=\"hidden\" value=\""+guid+"\" id=\"actualGuid\">"
-		+"<img width=\"100\" src=\""+regCaptchaUrl+"\"><p> Write the letters from the image (hint: try 'asdf')"
-		+"<input type=\"text\" id=\"regCaptchaSolution\"></p>"
-		+"<div id=\"regCaptchaButtonDiv\"><input type=\"button\" value=\"submit\" onclick=\"registerStep2();\"></div>";
+		+"<p> Paste in the registration token that was emailed to you (hint: try 'asdf')"
+		+"<input type=\"text\" id=\"regToken\"></p>"
+		+"<div id=\"regStepTwoButtonDiv\"><input type=\"button\" value=\"submit\" onclick=\"registerStep2();\"></div>";
 	document.getElementById('registerButton').disabled = false;
 	document.getElementById("registerButtonDiv").innerHTML = "";
 }
@@ -71,14 +70,14 @@ function registerStep2() {
 	emailForWallet = document.getElementById("reg_user").value;
 	var pass = document.getElementById("reg_pass").value;
 	var pass2 = document.getElementById("reg_pass2").value;
-	var regCaptchaSolution = document.getElementById("regCaptchaSolution").value;
+	var regToken = document.getElementById("regToken").value;
 	guidForUnhosted = document.getElementById("actualGuid").value;
 	var regResult;
 	if(pass != pass2) {
 		alert('passwords don\'t match');
 	} else {
 		//send create command including captcha and guid. if the guid already existed, it will say 'thanks for the captcha, but please pick an app to PopShake from before your account will be activated:
-		regResult = unhosted.registerWithCaptcha(guidForUnhosted, regCaptchaSolution);
+		regResult = unhosted.registerWithCaptcha(guidForUnhosted, regToken);
 		if(regResult == "ok") {
 			unhosted.exportWallet(emailForWallet, guidForUnhosted, 'grommace.com', pass);
 			showApp();
@@ -86,7 +85,7 @@ function registerStep2() {
 			alert('try typing "asdf" for the solution of the captcha ;)');
 		} else if(regResult == "pendingPopShake") {
 			unhosted.exportWallet(emailForWallet, guidForUnhosted, 'grommace.com', pass);//export already, they can always find it as pending later.
-			document.getElementById("regCaptchaButtonDiv").innerHTML= "";
+			document.getElementById("regStepTwoButtonDiv").innerHTML= "";
 			document.getElementById("regPopShakeDiv").innerHTML=
 				"Name an app you used before:<br>"
 				+" <input type=\"text\" id=\"regPopShakeApp\" value=\"lovepoems.org\">"

@@ -212,11 +212,12 @@ unhosted = new function() {
 			}
 		}
 	}
-	var createPub = function(user, storageNode) {
+	var createPub = function(emailUser, emailDomain, storageNode) {
 		var bnSeskey, bnWriteKey, bnReadKey;
 		key = RSAGenerate();
 		key.storageNode = storageNode;
-		key.user = user;
+		key.emailUser = emailUser;
+		key.emailDomain = emailDomain;
 		bnSeskey = new BigInteger(128,1,rng);//rijndael function we use uses a 128-bit key
 		key.session_key = bnSeskey.toString(16);
 		bnWriteKey = new BigInteger(128,1,rng);//rijndael function we use uses a 128-bit key
@@ -227,26 +228,26 @@ unhosted = new function() {
 	}
 	//public:
 	this.importPub = function(writeCaps, nick) {//import a (pub) key to the keys[] variable
-		checkFields(writeCaps, ['user', 'storageNode', 'publicKeyProduct', 'privateKeyComplement']);
+		checkFields(writeCaps, ['emailUser', 'emailDomain', 'storageNode', 'publicKeyProduct', 'privateKeyComplement']);
 		keys[nick]=writeCaps;//this should contain r,c,n,d.
 	}
 	this.importPubNS = function(writeCaps, nick, locationN, locationS) {
-		checkFields(writeCaps, ['user', 'storageNode', 'pubPass', 'privateKeyComplement']);
+		checkFields(writeCaps, ['emailUser', 'emailDomain', 'storageNode', 'pubPass', 'privateKeyComplement']);
 		keys[nick]=writeCaps;//this should contain r,c,w,d.
 		return (addN(nick, locationN)==true && addS(nick, locationS)==true);
 	}
 	this.importSub = function(readCaps, nick) {//import a (sub) key to the keys[] variable
-		checkFields(readCaps, ['user', 'storageNode']);
+		checkFields(readCaps, ['emailUser', 'emailDomain', 'storageNode']);
 		keys[nick]=readCaps;
 	}
 	this.importSubN = function(subPass, nick, locationN) {//import a (sub) key to the keys[] variable
-		checkFields(subPass, ['user', 'storageNode']);
+		checkFields(subPass, ['emailUser', 'emailDomain', 'storageNode']);
 		keys[nick]=subPass;//this should contain r,c.
 		return (addN(nick, locationN)==true);
 	}
 	this.rawGet = function(nick, keyPath) {//used for starskey and by wappbook login bootstrap to retrieve key.n and key.s
 		checkNick(nick);
-		var ret = sendPost("protocol=UJ/0.2&action=KV.GET&user="+keys[nick].user+"&keyPath="+keyPath+"&subPass="+keys[nick].subPass, keys[nick].storageNode);
+		var ret = sendPost("protocol=UJ/0.2&action=KV.GET&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain+"&keyPath="+keyPath+"&subPass="+keys[nick].subPass, keys[nick].storageNode);
 		if(ret == "") {
 			return null;
 		}
@@ -272,12 +273,12 @@ unhosted = new function() {
 //		}
 	}
 	this.importWallet = function(email, walletHost, walletPass) {//execute a getwallet command
-		var ret = sendPost("protocol=KeyWallet/0.1&action=GET&email="+email+"&password="+walletPass, walletHost, "http://", "/wallet/");
+		var ret = sendPost("protocol=KeyWallet/0.1&action=GET&email="+email+"&password="+walletPass,
+					walletHost, "http://", "/wallet/");
 		var wallet = JSON.parse(ret);
-		var guid = wallet.user+'@'+wallet.storageNode;
-		this.importPub(wallet, guid);
-		var ret = sendPost("protocol=UJ/0.2&action=ACCT.GETSTATE&user="+keys[guid].user
-					+"&pubPass="+keys[guid].pubPass, keys[guid].storageNode);
+		this.importPub(wallet, email);
+		var ret = sendPost("protocol=UJ/0.2&action=ACCT.GETSTATE&emailUser="+keys[email].emailUser+"&emailDomain="+keys[email].emailDomain
+					+"&pubPass="+keys[email].pubPass, keys[email].storageNode);
 		switch(ret) {
 		case '0':
 			alert('your account is still pending setup');
@@ -300,10 +301,11 @@ unhosted = new function() {
 		default:
 			alert('unknown account state');
 		}
-		return guid;
+		return email;
 	}
 	this.exportWallet = function(email, guid, walletHost, walletPass) {//execute a getwallet command
-		var ret = sendPost("protocol=KeyWallet/0.1&action=SET&email="+email+"&password="+walletPass+"&wallet="+JSON.stringify(keys[guid]), walletHost, "wallet");
+		var ret = sendPost("protocol=KeyWallet/0.1&action=SET&email="+email+"&password="+walletPass+"&wallet="+JSON.stringify(keys[guid]), 
+					walletHost, "http://", "/wallet/");
 	}
 	this.rawSet = function(nick, keyPath, value, useN) {
 		checkNick(nick);
@@ -315,13 +317,13 @@ unhosted = new function() {
 			var encr = byteArrayToHex(rijndaelEncrypt(value, hexToByteArray(seskey), 'ECB'));
 			//Then, we RSA-encrypt var seskey asymmetrically with nick's public RSA.n, and that encrypted session key goes into 'ses' in the cmd. See also this.receive.
 			var encrSes = RSAEncrypt(seskey, nick);
-			cmd = JSON.stringify({"me":"KV.SET", "user":keys[nick].user, "keyPath":keyPath, "value":encr, "ses":encrSes});
+			cmd = JSON.stringify({"me":"KV.SET", "emailUser":keys[nick].emailUser, "keyPath":keyPath, "value":encr, "ses":encrSes});
 			PubSign = makePubSign(nick, cmd);
 		} else {
-			cmd = JSON.stringify({"method":"SET", "chan":keys[nick].r, "keyPath":keyPath, "value":value});
+			cmd = JSON.stringify({"method":"SET", "chan":keys[nick].emailUser, "keyPath":keyPath, "value":value});
 			PubSign = '';
 		}
-		ret = sendPost("protocol=UJ/0.2&action=KV.SET&user="+keys[nick].user+"&keyPath="+keyPath+"&value="+value+"PubSign="+PubSign+'&pubPass='+keys[nick].pubPass, keys[nick].storageNode);
+		ret = sendPost("protocol=UJ/0.2&action=KV.SET&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain+"&keyPath="+keyPath+"&value="+value+"PubSign="+PubSign+'&pubPass='+keys[nick].pubPass, keys[nick].storageNode);
 		if(ret != '"OK"') {
 			alert(ret);
 		}
@@ -332,7 +334,7 @@ unhosted = new function() {
 		var encr = byteArrayToHex(rijndaelEncrypt(JSON.stringify(value), hexToByteArray(keys[nick].session_key), 'ECB'));
 		var cmd = JSON.stringify({"method":"SET", "chan":keys[nick].user, "keyPath":keyPath, "value":encr});
 		var PubSign = '';//makePubSign(nick, cmd);
-		var ret = sendPost("protocol=UJ/0.2&action=KV.SET&user="+keys[nick].user+"&keyPath="+keyPath+"&value="+encr+"&PubSign="+PubSign+'&pubPass='+keys[nick].pubPass, keys[nick].storageNode);
+		var ret = sendPost("protocol=UJ/0.2&action=KV.SET&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain+"&keyPath="+keyPath+"&value="+encr+"&PubSign="+PubSign+'&pubPass='+keys[nick].pubPass, keys[nick].storageNode);
 		if(ret != '"OK"') {
 			alert(ret);
 		}
@@ -363,8 +365,8 @@ unhosted = new function() {
 		} else {
 			andDeleteBool = false;
 		}
-		var cmd = JSON.stringify({"method":"RECEIVE", "chan":keys[nick].r, "keyPath":keyPath, "delete":andDeleteBool});
-		var retJson = sendPost("protocol=UJ/0.1&cmd="+cmd+'&WriteCaps='+keys[nick].w, keys[nick].c);
+		var retJson = sendPost("protocol=UJ/0.1&action=MSG.RECEIVE&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain
+			+"&keyPath="+keyPath+"&delete="+andDeleteBool, keys[nick].storageNode);
 		var ret, cmdStr, sig, seskey, decrVal;
 		try {
 			ret = JSON.parse(retJson);
@@ -436,17 +438,16 @@ unhosted = new function() {
 		}
 		return str;
 	}
-	this.nodeExists = function(guid) {
-		var parts = guid.split('@', 2);
-		return (parts[1] == 'balimich.org');
+	this.nodeExists = function(storageNode) {
+		return (storageNode == 'balimich.org');
 	}
-	this.registerAccount = function(guid) {
+	this.registerAccount = function(guid, storageNode) {
 		var parts, key, ret;
 		parts = guid.split('@', 2);
 		if(parts.length != 2) {
 			alert("guid "+guid+" not valid - use user@domain.tld");
 		} else {
-			key = createPub(parts[0], parts[1]);
+			key = createPub(parts[0], parts[1], storageNode);
 			//storage storageNode needs to know read and write passwords:
 			ret = sendPost("protocol=UJ/0.2&action=ACCT.REGISTER&emailUser="+parts[0]+"&emailDomain="+parts[1]
 				+"&subPass="+key.subPass+"&pubPass="+key.pubPass, key.storageNode);
@@ -460,7 +461,7 @@ unhosted = new function() {
 		if(parts.length != 2) {
 			alert("guid "+guid+" not valid - use user@domain.tld");
 		} else {
-			key = key[guid];
+			key = keys[guid];
 			//storage storageNode needs to know read and write passwords:
 			ret = sendPost("protocol=UJ/0.2&action=ACCT.CONFIRM&emailUser="+parts[0]+"&emailDomain="+parts[1]
 				+"&pubPass="+key.pubPass+"&registrationToken="+registrationToken, key.storageNode);

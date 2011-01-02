@@ -50,15 +50,17 @@ function logout() {
 //THE REGISTRATION PROCEDURE FOR NEW USERS:
 function registerStep1() {
 	document.getElementById('registerButton').disabled = true;
-	var guid = document.getElementById("reg_user").value;
-	if(!unhosted.nodeExists(guid)) {
-		guid += ".balimich.org";
+	var email = document.getElementById("reg_email").value;
+	var parts = email.split('@', 2);
+	var storageNode = parts[1]
+	if(!unhosted.nodeExists(storageNode)) {
+		storageNode += ".balimich.org";
 	}
-	var regCaptchaUrl = unhosted.getCaptchaUrl(guid, 'reg');
+	unhosted.registerAccount(email, storageNode);
 	document.getElementById("regCaptchaDiv").innerHTML = 
 	"<table><tr><td>Password:</td><td> <input type=\"text\" value=\"pwd\" id=\"reg_pass\"></td></tr>"
 		+"<tr><td>Repeat:</td><td> <input type=\"text\" value=\"pwd\" id=\"reg_pass2\"></td></tr></table>"
-		+"<input type=\"hidden\" value=\""+guid+"\" id=\"actualGuid\">"
+		+"<input type=\"hidden\" value=\""+email+"\" id=\"actualGuid\">"
 		+"<p> Paste in the registration token that was emailed to you (hint: try 'asdf')"
 		+"<input type=\"text\" id=\"regToken\"></p>"
 		+"<div id=\"regStepTwoButtonDiv\"><input type=\"button\" value=\"submit\" onclick=\"registerStep2();\"></div>";
@@ -67,7 +69,7 @@ function registerStep1() {
 }
 
 function registerStep2() {
-	emailForWallet = document.getElementById("reg_user").value;
+	emailForWallet = document.getElementById("reg_email").value;
 	var pass = document.getElementById("reg_pass").value;
 	var pass2 = document.getElementById("reg_pass2").value;
 	var regToken = document.getElementById("regToken").value;
@@ -77,30 +79,14 @@ function registerStep2() {
 		alert('passwords don\'t match');
 	} else {
 		//send create command including captcha and guid. if the guid already existed, it will say 'thanks for the captcha, but please pick an app to PopShake from before your account will be activated:
-		regResult = unhosted.registerWithCaptcha(guidForUnhosted, regToken);
+		regResult = unhosted.confirmAccount(guidForUnhosted, regToken);
 		if(regResult == "ok") {
 			unhosted.exportWallet(emailForWallet, guidForUnhosted, 'grommace.com', pass);
 			showApp();
-		} else if(regResult == "captchaWrong") {
-			alert('try typing "asdf" for the solution of the captcha ;)');
-		} else if(regResult == "pendingPopShake") {
-			unhosted.exportWallet(emailForWallet, guidForUnhosted, 'grommace.com', pass);//export already, they can always find it as pending later.
-			document.getElementById("regStepTwoButtonDiv").innerHTML= "";
-			document.getElementById("regPopShakeDiv").innerHTML=
-				"Name an app you used before:<br>"
-				+" <input type=\"text\" id=\"regPopShakeApp\" value=\"lovepoems.org\">"
-				+" <input type=\"submit\" id=\"popShakeButton\" value=\"Do the PopShake!\" onclick=\"registerStep3();\">";
+		} else {
+			alert('try typing "asdf" for the registration token');
 		}
 	}
-}
-function registerStep3() {
-	//when you get here, the node has already received the entire CREATE command from you. it is just protecting the existing account. 
-	//so we should walk the popshake circle in the opposite direction than we were doing.
-	//the unhosted storage node should generate the popshaketoken, and put the creation on pending until any of the existing apps give it back, with their PubPass.
-	var guid = document.getElementById('actualGuid').value;
-	var existing_app = document.getElementById('regPopShakeApp').value;
-	var popupUrl ="http://"+existing_app+"/PopShake/?app=fastcars.org&guid="+guid;
-	window.location = popupUrl;
 }
 
 //MIGRATION:
@@ -108,7 +94,7 @@ function showMigrationDiv() {
 	var email = document.getElementById("login_email").value;
 	var emailParts = email.split('@', 2);
 	document.getElementById('migrationDiv').innerHTML = '<div id="migrationButtonDiv">'; 
-	if(unhosted.nodeExists(email)) {
+	if(unhosted.nodeExists(emailParts[1])) {
 		document.getElementById('migrationDiv').innerHTML += 
 			'<input type="button" value="Take your data home to '+emailParts[1]+'" onclick="migrateStep1('+emailParts[1]+');>';
 	}
@@ -117,7 +103,8 @@ function showMigrationDiv() {
 		+'</div><input type="text" id="dataDestination">';
 }
 function migrateStep1(toGuid) {
-	if(!unhosted.nodeExists(toGuid)) {
+	var emailParts = email.split('@', 2);
+	if(!unhosted.nodeExists(emailParts[1])) {
 		alert("sorry, your email "+toGuid+" does not support unhosted storage. Ask your IT guy to fix this (more info:http://www.unhosted.org/)");
 	} else {
 		var migrCaptchaUrl = unhosted.getCaptchaUrl(toGuid, 'migr');
@@ -180,7 +167,7 @@ function migrateStep3() {
 <H2>Register:</H2>
 <table border="1"><tr><td>
 	<table>
-		<tr><td>Email:</td><td> <input type="text" value="sjonnie@hotmail.com" id="reg_user"/></td></tr>
+		<tr><td>Email:</td><td> <input type="text" value="sjonnie@hotmail.com" id="reg_email"/></td></tr>
 	</table>
 	<div id="regCaptchaDiv"></div>
 	<div id="regPopShakeDiv"></div>

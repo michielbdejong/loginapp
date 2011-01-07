@@ -26,7 +26,8 @@ function showApp() {
 		parts = guidForUnhosted.split('@', 2);
 		document.getElementById('keyDiv').innerHTML =
 			'Dream car: <input type="text" id="dreamCar"><input type="button" value="save dream car" onclick="saveDreamCar();" id="saveDreamCarButton"><br><br>'
-			+'<input type="button" value="migrate your unhosted data away from '+parts[1]+'" onclick="showMigrationDiv();" id="migrateButton"/>'
+			//+'<input type="button" value="migrate your unhosted data away from '+parts[1]+'" onclick="showMigrationDiv();" id="migrateButton"/>'
+			+'<input type="button" value="migrate your unhosted data away from where it is now" onclick="showMigrationDiv();" id="migrateButton"/>'
 			+'<input type="button" value="logout" onclick="logout();" id="logoutButton"/>';
 		loadDreamCar();
 	}
@@ -91,6 +92,8 @@ function registerStep2() {
 
 //MIGRATION:
 function showMigrationDiv() {
+	alert('under construction!');
+	return;
 	var email = document.getElementById("login_email").value;
 	var emailParts = email.split('@', 2);
 	document.getElementById('migrationDiv').innerHTML = '<div id="migrationButtonDiv">'; 

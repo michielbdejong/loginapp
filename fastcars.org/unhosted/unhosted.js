@@ -34,20 +34,36 @@ unhosted = new function() {
 		if(typeof postfix == 'undefined') {
 			postfix = "/UJ/0.2/";
 		}
-		xmlhttp=new XMLHttpRequest();
+		xmlhttp = new XMLHttpRequest();
 		//xmlhttp.open("POST","http://example.unhosted.org/",false);
-		xmlhttp.open("POST",prefix+storageNode+postfix,false);//TODO: make this https
-		xmlhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+		xmlhttp.open("POST",prefix+storageNode+postfix, false);//TODO: make this https
+		xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 		xmlhttp.send(post);
 		return xmlhttp.responseText;
 	}
-	var checkNick=function(nick) {
+	var checkWebFinger = function(nick) {
+		var webFingerUrl, response, parts;
+		xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", "http://"+keys[nick].storageNode+"/.well-known/host-meta", false);
+		xmlhttp.send();
+		response = xmlhttp.responseText;
+		parts = response.split("template='");
+		parts = parts[1].split("'");
+		webFingerUrl = parts[0];
+		xmlhttp.open("GET", "http://"+webFingerUrl+"?uri=acct:"+keys[nick].emailUser+"@"+keys[nick].storageNode, false);
+		xmlhttp.send();
+		response = xmlhttp.responseText;
+	}
+	var checkNick = function(nick) {
 		if(typeof keys[nick] == 'undefined') {
 			parts=nick.split('@', 2);
 			if(parts.length != 2) {
 				alert('attempt to use undefined key nick: '+nick+'. Did you forget to log in?');
 			}
 			that.importSubN({"user":parts[0],"storageNode":parts[1]},nick,".n");
+		}
+		if(typeof keys[nick]['modules'] == 'undefined') {
+			checkWebFinger(nick);
 		}
 	}
 	var checkFields = function(arr, fieldNames) {

@@ -34,25 +34,45 @@ unhosted = new function() {
 		if(typeof postfix == 'undefined') {
 			postfix = "/UJ/0.2/";
 		}
+		return sendPostTo(post, prefix+storageNode+postfix);
+	}
+	var sendPostTo = function(post, url) {
 		xmlhttp = new XMLHttpRequest();
-		//xmlhttp.open("POST","http://example.unhosted.org/",false);
-		xmlhttp.open("POST",prefix+storageNode+postfix, false);//TODO: make this https
+		xmlhttp.open("POST", url, false);//TODO: make this https
 		xmlhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 		xmlhttp.send(post);
 		return xmlhttp.responseText;
 	}
+	var sendUnhostedPost = function(post, module, nick) {
+		url = keys[nick].modules[module];
+		return sendPostTo(post, url);
+	}
 	var checkWebFinger = function(nick) {
-		var webFingerUrl, response, parts;
+		var webFingerUrl, response, parts, i, subParts, subSubParts, spec, handler;
 		xmlhttp = new XMLHttpRequest();
-		xmlhttp.open("GET", "http://"+keys[nick].storageNode+"/.well-known/host-meta", false);
+		xmlhttp.open("GET", "http://"+keys[nick].storageNode+"/.well-known/host-meta/", false);
 		xmlhttp.send();
 		response = xmlhttp.responseText;
 		parts = response.split("template='");
-		parts = parts[1].split("'");
+		parts = parts[1].split("{uri}'");//TODO: not assume {uri} is at the end
 		webFingerUrl = parts[0];
-		xmlhttp.open("GET", "http://"+webFingerUrl+"?uri=acct:"+keys[nick].emailUser+"@"+keys[nick].storageNode, false);
+		xmlhttp.open("GET", "http://"+webFingerUrl+"acct:"+keys[nick].emailUser+"@"+keys[nick].storageNode, false);
 		xmlhttp.send();
 		response = xmlhttp.responseText;
+		parts = response.split("<Link rel=");
+		keys[nick].modules = {};
+		for(i in parts) {
+			subParts = parts[i].split(" />");
+			subParts = subParts[0].split("href=");
+			if(subParts.length > 1) {
+				subSubParts = subParts[0].split("'");
+				spec = subSubParts[1];
+				subSubParts = subParts[1].split("'");
+				handler = subSubParts[1];
+				keys[nick].modules[spec] = handler;
+			}
+		}
+		i=1;
 	}
 	var checkNick = function(nick) {
 		if(typeof keys[nick] == 'undefined') {
@@ -60,7 +80,7 @@ unhosted = new function() {
 			if(parts.length != 2) {
 				alert('attempt to use undefined key nick: '+nick+'. Did you forget to log in?');
 			}
-			that.importSubN({"user":parts[0],"storageNode":parts[1]},nick,".n");
+			that.importSubN({"emailUser":parts[0],"storageNode":parts[1]},nick,".n");
 		}
 		if(typeof keys[nick]['modules'] == 'undefined') {
 			checkWebFinger(nick);
@@ -127,7 +147,8 @@ unhosted = new function() {
 	}
 	this.rawGet = function(nick, keyPath) {//used for starskey and by wappbook login bootstrap to retrieve key.n and key.s
 		checkNick(nick);
-		var ret = sendPost("protocol=UJ/0.2&action=KV.GET&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain+"&keyPath="+keyPath+"&subPass="+keys[nick].subPass, keys[nick].storageNode);
+		//var ret = sendPost("protocol=UJ/0.2&action=KV.GET&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain+"&keyPath="+keyPath+"&subPass="+keys[nick].subPass, keys[nick].storageNode);
+		var ret = sendUnhostedPost("protocol=UJ/0.2&action=KV.GET&emailUser="+keys[nick].emailUser+"&emailDomain="+keys[nick].emailDomain+"&keyPath="+keyPath+"&subPass="+keys[nick].subPass, 'http://unhosted.org/spec/UJ/KV/0.2', nick);
 		if(ret == "") {
 			return null;
 		}
